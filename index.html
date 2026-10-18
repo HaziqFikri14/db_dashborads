@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DB Monitoring Control Room</title>
+<style>
+:root{--bg:#070b14;--panel:#0e1524;--line:#1c2a44;--txt:#dce8ff;--mut:#7d8fb0;--cyan:#22e4ff;--ok:#2dffa0;--bad:#ff3d5a;--amber:#ffb020;--dial:#0a1020;--glow:0 0 14px}
+[data-theme=light]{--bg:#eef2f8;--panel:#ffffff;--line:#d5deec;--txt:#13203a;--mut:#5b6b88;--cyan:#0a8fb0;--ok:#0f9d62;--bad:#d81f40;--amber:#c27d00;--dial:#f4f8ff;--glow:0 0 0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,Arial,sans-serif;padding:16px;transition:background .3s}
+.mono{font-family:ui-monospace,Consolas,"Courier New",monospace}
+header{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-start;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:16px;margin-bottom:14px}
+.kick{color:var(--cyan);font-size:12px;letter-spacing:.18em;text-transform:uppercase}
+h1{font-size:21px;margin:4px 0 6px;line-height:1.25;max-width:640px}
+.course{color:var(--mut);font-size:13px}
+.team{color:var(--mut);font-size:12px;margin-top:8px;line-height:1.6}
+.team b{color:var(--txt);font-weight:600}
+.side{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
+.chip i{width:11px;height:11px;border-radius:50%;background:var(--ok);box-shadow:var(--glow) var(--ok)}
+.chip.bad{color:var(--bad);border-color:var(--bad)}.chip.bad i{background:var(--bad);box-shadow:var(--glow) var(--bad)}
+.chip.ok{color:var(--ok)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+button{background:transparent;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer}
+button:hover{border-color:var(--cyan)}
+button.on{border-color:var(--cyan);color:var(--cyan)}
+.notice{border:1px solid var(--bad);background:rgba(255,61,90,.12);color:var(--bad);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-weight:600;font-size:14px;line-height:1.5}
+.notice.warn{border-color:var(--amber);background:rgba(255,176,32,.12);color:var(--amber)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.panel h2{margin:0 0 8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.alarm{display:flex;gap:14px;align-items:center;border-left:4px solid var(--ok)}
+.alarm .led{width:30px;height:30px;border-radius:50%;background:var(--ok);box-shadow:var(--glow) var(--ok);flex:none}
+.alarm b{display:block;font-size:17px}
+.alarm small{color:var(--mut);font-size:12px}
+.alarm .v{font-size:22px;font-weight:700}
+.alarm.on{border-left-color:var(--bad)}
+.alarm.on .led{background:var(--bad);box-shadow:var(--glow) var(--bad);animation:bl 1s infinite}
+.alarm.on b,.alarm.on .v{color:var(--bad)}
+@keyframes bl{50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.alarm.on .led{animation:none}}
+.needle{transition:transform 1s cubic-bezier(.3,1.4,.5,1)}
+.arow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;margin:8px 0}
+.pill{font-size:12px;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--mut);font-weight:700}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.wait{color:var(--amber);border-color:var(--amber)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tools button{color:var(--amber);border-color:var(--amber)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--bad);color:#fff;font-size:12px;font-weight:700;margin-right:4px}
+.empty,.foot,small{color:var(--mut);font-size:12px}
+.foot{margin-top:10px}
+.tablewrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="kick">Industrial Design Project 1 · EEE601</div>
+    <h1>IoT-Based Monitoring System for Real-Time Fault Detection at Distribution Board</h1>
+    <div class="course">Faculty of Electrical Engineering, Universiti Teknologi MARA · Single-phase 240 V · safe range 216 V to 264 V</div>
+    <div class="team"><b>Team:</b> Mohamad Hamizan bin Roslan (2024958221) · Mohamad Haziq Fikri bin Mohamad Zaki (2024991923) · Muhammad Farid Hakimi bin A'zmi (2024517721)</div>
+  </div>
+  <div class="side">
+    <div class="chip ok" id="chip"><i></i><span id="chipTxt">Loading</span></div>
+    <div class="course mono" id="upd">--</div>
+    <div class="course mono" id="cd">--</div>
+    <div class="btns">
+      <button id="mode" type="button">Mode: --</button>
+      <button id="theme" type="button">Switch to light mode</button>
+    </div>
+  </div>
+</header>
+
+<div class="notice" id="err" hidden></div>
+<div class="notice" id="offline" hidden></div>
+
+<div class="grid">
+  <div class="panel"><h2>Voltage monitor</h2><div id="gV"></div></div>
+  <div class="panel"><h2>Current monitor</h2><div id="gA"></div></div>
+  <div class="panel"><h2>Power monitor</h2><div id="gW"></div></div>
+</div>
+
+<div class="grid">
+  <div class="panel alarm" id="aV"><div class="led"></div><div><b>Overvoltage</b><div class="v mono">--</div><small></small></div></div>
+  <div class="panel alarm" id="aI"><div class="led"></div><div><b>Overcurrent</b><div class="v mono">--</div><small></small></div></div>
+  <div class="panel alarm" id="aP"><div class="led"></div><div><b>Overpower</b><div class="v mono">--</div><small></small></div></div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Alert status</h2>
+    <div class="arow">Channel
+      <button type="button" data-ch="Telegram">Telegram</button>
+      <button type="button" data-ch="SMS">SMS</button>
+    </div>
+    <div class="arow">Last fault: <span class="mono" id="aLast">none</span></div>
+    <div class="arow">Delivery: <span class="pill" id="aState">--</span></div>
+    <small id="aNote"></small>
+  </div>
+  <div class="panel" id="toolsPanel" hidden>
+    <h2>Test controls</h2>
+    <div class="tools">
+      <button type="button" data-f="Overvoltage">Overvoltage</button>
+      <button type="button" data-f="Undervoltage">Undervoltage</button>
+      <button type="button" data-f="Overcurrent">Overcurrent</button>
+      <button type="button" data-f="Overpower">Overpower</button>
+      <button type="button" id="pause">Pause feed (ESP32 offline)</button>
+    </div>
+    <small>Test mode makes fake readings in your browser. Nothing is read from Google Sheets.</small>
+  </div>
+</div>
+
+<div class="panel" style="margin-bottom:14px"><h2>Voltage history (V)</h2><div id="cV"></div></div>
+<div class="panel" style="margin-bottom:14px"><h2>Current history (A)</h2><div id="cA"></div></div>
+<div class="panel" style="margin-bottom:14px"><h2>Active power history (W)</h2><div id="cW"></div></div>
+
+<div class="panel"><h2>Fault event log</h2><div class="tablewrap" id="log"></div></div>
+<div class="foot mono" id="foot"></div>
+
+<script>
+/* ===== SETTINGS ===== */
+const CFG = {
+  csvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHj3GVfvCh8TgUD4A4-dE5JPwJSUD3Kpz9gw64-aOkhifE0-7M2WrlktW8ImmB__vm2wRju-Iz-wZT/pub?output=csv",            // paste the "Publish to web" CSV link here
+  sheetId: "", sheetTab: "Sheet1",  // optional: fresher data through the sheet ID (sheet must be shared "Anyone with the link: Viewer")
+  refreshSec: 10,        // how often live mode asks Google for new rows
+  testRefreshSec: 3,     // how often test mode makes a new fake reading
+  offlineSec: 180,       // show ESP32 OFFLINE if the newest row is older than this (published CSV can lag a few minutes)
+  points: 60,            // readings shown in the charts
+  dateOrder: "auto",     // "auto", "dmy" or "mdy" (only matters if column A is not yyyy-mm-dd hh:mm:ss)
+  alertChannel: "Telegram"
+};
+const LIM = { vHigh: 264, vLow: 216, iMax: 10, pMax: 2400 }; // keep equal to the limits in your sheet (G2:H5)
+
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.random()*(b-a);
+const pad = n => String(n).padStart(2,"0");
+const fmt = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hasLink = () => !!(CFG.csvUrl || CFG.sheetId);
+
+let ALL = [], mode = "test", busy = false, left = 0, lastSrc = "";
+let sim = [], simPaused = false, simForce = null;
+
+/* ---------- CSV reading ---------- */
+function csvToRows(text){
+  const out = []; let row = [], cell = "", q = false;
+  for (let k = 0; k < text.length; k++){
+    const c = text[k];
+    if (q){ if (c === '"'){ if (text[k+1] === '"'){ cell += '"'; k++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ","){ row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[k+1] === "\n") k++; row.push(cell); out.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell !== "" || row.length){ row.push(cell); out.push(row); }
+  return out;
+}
+function parseTime(s, order){
+  s = String(s).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return new Date(+m[1], m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?/);
+  if (m){
+    const a = +m[1], b = +m[2], d = order === "dmy" ? a : b, mo = order === "dmy" ? b : a;
+    let h = +m[4]; const ap = m[7];
+    if (ap){ const pm = ap.toLowerCase() === "pm"; if (pm && h < 12) h += 12; if (!pm && h === 12) h = 0; }
+    return new Date(+m[3], mo-1, d, h, +m[5], +(m[6]||0));
+  }
+  const t = Date.parse(s); return isNaN(t) ? null : new Date(t);
+}
+function parseRows(text){
+  text = text.replace(/^\uFEFF/, "");
+  if (/^\s*</.test(text)) throw new Error("The link returned a web page, not CSV. In Google Sheets use File > Share > Publish to web, pick the tab, and choose Comma-separated values (.csv).");
+  const rows = csvToRows(text).filter(r => r.some(c => c.trim() !== ""));
+  if (rows.length < 2) throw new Error("Connected to the sheet, but there are no data rows yet.");
+  const h = rows[0].map(x => x.trim().toLowerCase());
+  const find = (...keys) => h.findIndex(x => keys.some(k => x.includes(k)));
+  let ti = find("time","date"), vi = find("volt"), ii = find("curr"), wi = find("power","watt");
+  const ai = find("alert");
+  if (ti < 0) ti = 0; if (vi < 0) vi = 1; if (ii < 0) ii = 2; if (wi < 0) wi = 3;
+  let order = CFG.dateOrder;
+  if (order === "auto"){
+    order = "dmy";
+    for (const r of rows.slice(1)){
+      const m = (r[ti] || "").match(/^(\d{1,2})\/(\d{1,2})\//);
+      if (m){ if (+m[1] > 12){ order = "dmy"; break; } if (+m[2] > 12){ order = "mdy"; break; } }
+    }
+  }
+  const num = x => parseFloat(String(x).replace(/,/g, ""));
+  const data = rows.slice(1).map(r => {
+    const d = parseTime(r[ti] || "", order);
+    return { d, t: d ? fmt(d) : String(r[ti] || ""), v: num(r[vi]), i: num(r[ii]), w: num(r[wi]), alert: ai >= 0 ? (r[ai] || "").trim() : null };
+  }).filter(r => Number.isFinite(r.v) && Number.isFinite(r.i) && Number.isFinite(r.w));
+  if (!data.length) throw new Error("Connected to the sheet, but no valid rows were found. The tab needs Timestamp, Voltage, Current and Power columns with numbers.");
+  return data;
+}
+function faultsOf(r){
+  const f = [];
+  if (r.v > LIM.vHigh) f.push("Overvoltage");
+  if (r.v < LIM.vLow)  f.push("Undervoltage");
+  if (r.i > LIM.iMax)  f.push("Overcurrent");
+  if (r.w > LIM.pMax)  f.push("Overpower");
+  return f;
+}
+
+/* ---------- live and test sources ---------- */
+async function loadLive(){
+  let url = CFG.csvUrl;
+  if (!url && CFG.sheetId) url = "https://docs.google.com/spreadsheets/d/" + CFG.sheetId + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(CFG.sheetTab);
+  if (!url) throw new Error("No sheet link set yet. Paste your published CSV link into csvUrl in the settings, or switch to Test mode.");
+  let r;
+  try { r = await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" }); }
+  catch (e){ throw new Error("Could not reach Google Sheets. Check you are online, the link is the Publish to web CSV link, and the tab is published."); }
+  if (!r.ok) throw new Error("Google answered with error " + r.status + ". Check the link, and that the tab is published or shared with anyone who has the link.");
+  lastSrc = "Google Sheet (live)";
+  return parseRows(await r.text());
+}
+function mkRow(d, f){
+  let v = 240 + rnd(-4,4), i = rnd(1.8,2.6);
+  if (f === "Overvoltage") v = rnd(266,276);
+  else if (f === "Undervoltage") v = rnd(200,212);
+  else if (f === "Overcurrent") i = rnd(10.5,13);
+  else if (f === "Overpower"){ v = rnd(255,262); i = rnd(9.5,9.9); }
+  return { d, t: fmt(d), v, i, w: v*i*0.97, alert: null };
+}
+function loadTest(){
+  lastSrc = "test data (made in your browser)";
+  if (!sim.length) for (let k = 40; k >= 1; k--) sim.push(mkRow(new Date(Date.now() - k*CFG.testRefreshSec*1000)));
+  if (!simPaused){
+    if (!simForce && Math.random() < 0.04) simForce = { type: ["Overvoltage","Undervoltage","Overcurrent","Overpower"][Math.floor(Math.random()*4)], left: 3 };
+    const row = mkRow(new Date(), simForce && simForce.type);
+    if (simForce && --simForce.left <= 0) simForce = null;
+    const prev = sim[sim.length-1];
+    if (faultsOf(row).length && !(prev && faultsOf(prev).length)){
+      row.alert = "Sending";
+      setTimeout(() => { row.alert = "Sent via " + CFG.alertChannel; renderAll(); }, 1500);
+    }
+    sim.push(row); if (sim.length > 300) sim.shift();
+  }
+  return sim.slice();
+}
+
+/* ---------- analog gauge ---------- */
+function makeGauge(box, label, unit, min, max, lo, hi, dec){
+  const A0 = -120, A1 = 120;
+  const ang = v => A0 + (Math.min(Math.max(v,min),max)-min)/(max-min)*(A1-A0);
+  const pt = (a,r) => { const t=(a-90)*Math.PI/180; return [100+r*Math.cos(t), 100+r*Math.sin(t)]; };
+  const arc = (s,e,col) => {
+    if (e <= s) return "";
+    const p=pt(ang(s),78), q=pt(ang(e),78);
+    return `<path d="M${p[0]} ${p[1]}A78 78 0 ${ang(e)-ang(s)>180?1:0} 1 ${q[0]} ${q[1]}" stroke="var(--${col})" stroke-width="6" fill="none" opacity=".9"/>`;
+  };
+  let tk = "";
+  for (let k=0;k<=10;k++){
+    const a=A0+k*(A1-A0)/10, p=pt(a,70), q=pt(a,k%2?64:60);
+    tk += `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="var(--mut)" stroke-width="1.3"/>`;
+    if (k%2===0){ const t=pt(a,49); tk += `<text x="${t[0]}" y="${t[1]+3}" font-size="9" text-anchor="middle" fill="var(--mut)">${Math.round(min+(max-min)*k/10)}</text>`; }
+  }
+  box.innerHTML = `<svg viewBox="0 0 200 175" width="100%" role="img" aria-label="${label} gauge">
+    <circle cx="100" cy="100" r="92" fill="var(--dial)" stroke="var(--line)" stroke-width="3"/>
+    ${arc(min,lo,"bad")}${arc(lo,hi,"ok")}${arc(hi,max,"bad")}${tk}
+    <text x="100" y="90" font-size="9" text-anchor="middle" fill="var(--mut)" letter-spacing="2">${label.toUpperCase()}</text>
+    <g class="needle" style="transform-origin:100px 100px;transform:rotate(-120deg)">
+      <line x1="100" y1="106" x2="100" y2="34" stroke="var(--cyan)" stroke-width="2.5" stroke-linecap="round" style="filter:drop-shadow(0 0 3px var(--cyan))"/></g>
+    <circle cx="100" cy="100" r="6" fill="var(--panel)" stroke="var(--cyan)" stroke-width="2"/>
+    <text class="rd" x="100" y="146" font-size="19" text-anchor="middle" fill="var(--txt)" font-weight="700" font-family="ui-monospace,Consolas,monospace">--</text>
+    <text x="100" y="162" font-size="10" text-anchor="middle" fill="var(--mut)">${unit}</text></svg>`;
+  const nd = box.querySelector(".needle"), rd = box.querySelector(".rd");
+  return v => {
+    nd.style.transform = `rotate(${ang(v)}deg)`;
+    rd.textContent = v.toFixed(dec);
+    rd.setAttribute("fill", (v<lo||v>hi) ? "var(--bad)" : "var(--txt)");
+  };
+}
+
+/* ---------- large line chart ---------- */
+function chart(box, rows, key, col, limits, dec){
+  const W=800,H=240,L=48,R=16,T=14,B=26;
+  const vals = rows.map(r=>r[key]), all = vals.concat(limits.map(l=>l.y));
+  let lo=Math.min(...all), hi=Math.max(...all); const pd=(hi-lo||1)*.12; lo-=pd; hi+=pd;
+  const x = i => L + (rows.length<2 ? 0 : i/(rows.length-1))*(W-L-R);
+  const y = v => T + (1-(v-lo)/(hi-lo))*(H-T-B);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${key} history chart">`;
+  for (let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4;
+    s += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+3}" font-size="10" text-anchor="end" fill="var(--mut)">${v.toFixed(dec)}</text>`; }
+  limits.forEach(l => { s += `<line x1="${L}" x2="${W-R}" y1="${y(l.y)}" y2="${y(l.y)}" stroke="var(--bad)" stroke-dasharray="6 5"/><text x="${W-R}" y="${y(l.y)-4}" font-size="10" text-anchor="end" fill="var(--bad)">${l.n}</text>`; });
+  const pts = rows.map((r,i)=>x(i)+","+y(r[key])).join(" ");
+  s += `<polygon points="${x(0)},${H-B} ${pts} ${x(rows.length-1)},${H-B}" fill="var(--${col})" opacity=".1"/>`;
+  s += `<polyline points="${pts}" fill="none" stroke="var(--${col})" stroke-width="2.2" style="filter:drop-shadow(0 0 3px var(--${col}))"/>`;
+  rows.forEach((r,i)=>{ if (faultsOf(r).length) s += `<circle cx="${x(i)}" cy="${y(r[key])}" r="5" fill="var(--bad)" stroke="var(--panel)" stroke-width="2"><title>${esc(r.t)}: ${faultsOf(r).join(" + ")}</title></circle>`; });
+  const tm = r => r.t.split(" ")[1] || r.t;
+  s += `<text x="${L}" y="${H-7}" font-size="10" fill="var(--mut)">${esc(tm(rows[0]))}</text><text x="${W-R}" y="${H-7}" font-size="10" text-anchor="end" fill="var(--mut)">${esc(tm(rows[rows.length-1]))}</text>`;
+  box.innerHTML = s + "</svg>";
+}
+
+function setAlarm(id, on, val, lim, count){
+  const b = $(id); b.className = "panel alarm" + (on ? " on" : "");
+  b.querySelector(".v").textContent = val;
+  b.querySelector("small").textContent = (on ? "ALARM · " : "Normal · ") + "limit " + lim + " · events: " + count;
+}
+
+const setV = makeGauge($("gV"),"Voltage","V",0,300,LIM.vLow,LIM.vHigh,1);
+const setA = makeGauge($("gA"),"Current","A",0,15,0,LIM.iMax,2);
+const setW = makeGauge($("gW"),"Power","W",0,3000,0,LIM.pMax,0);
+
+/* ---------- drawing the page ---------- */
+function renderAlert(all){
+  document.querySelectorAll("[data-ch]").forEach(b => b.classList.toggle("on", b.dataset.ch === CFG.alertChannel));
+  const fl = all.filter(r => faultsOf(r).length), last = fl[fl.length-1];
+  const st = $("aState"), note = $("aNote");
+  if (!last){ $("aLast").textContent = "none"; st.className = "pill"; st.textContent = "no fault yet"; note.textContent = ""; return; }
+  $("aLast").textContent = last.t + " · " + faultsOf(last).join(" + ");
+  if (last.alert === null){ st.className = "pill"; st.textContent = "not tracked"; note.textContent = "Add an Alert column to the sheet and send an alert field from the ESP32 to show Telegram or SMS delivery here."; return; }
+  const a = last.alert.toLowerCase();
+  note.textContent = "";
+  if (!a){ st.className = "pill wait"; st.textContent = "waiting for ESP32"; }
+  else if (a.includes("fail")){ st.className = "pill bad"; st.textContent = last.alert; }
+  else if (a.includes("sent")){ st.className = "pill ok"; st.textContent = last.alert; }
+  else { st.className = "pill wait"; st.textContent = last.alert + "..."; }
+}
+function render(all){
+  if (!all.length){ $("chipTxt").textContent = "No data"; return; }
+  const rows = all.slice(-CFG.points), last = rows[rows.length-1], lf = faultsOf(last);
+  $("chip").className = "chip " + (lf.length ? "bad" : "ok");
+  $("chipTxt").textContent = lf.length ? "FAULT: " + lf.join(" + ") : "SYSTEM NORMAL";
+  $("upd").textContent = "Last reading " + last.t;
+  setV(last.v); setA(last.i); setW(last.w);
+  setAlarm("aV", last.v>LIM.vHigh, last.v.toFixed(1)+" V", LIM.vHigh+" V", all.filter(r=>r.v>LIM.vHigh).length);
+  setAlarm("aI", last.i>LIM.iMax,  last.i.toFixed(2)+" A", LIM.iMax+" A",  all.filter(r=>r.i>LIM.iMax).length);
+  setAlarm("aP", last.w>LIM.pMax,  last.w.toFixed(0)+" W", LIM.pMax+" W",  all.filter(r=>r.w>LIM.pMax).length);
+  chart($("cV"), rows, "v", "cyan",  [{y:LIM.vHigh,n:"Overvoltage "+LIM.vHigh+" V"},{y:LIM.vLow,n:"Undervoltage "+LIM.vLow+" V"}], 0);
+  chart($("cA"), rows, "i", "amber", [{y:LIM.iMax,n:"Overcurrent "+LIM.iMax+" A"}], 1);
+  chart($("cW"), rows, "w", "ok",    [{y:LIM.pMax,n:"Overpower "+LIM.pMax+" W"}], 0);
+  const fl = all.filter(r=>faultsOf(r).length).reverse().slice(0,30);
+  $("log").innerHTML = fl.length
+    ? "<table><tr><th>Time</th><th>Fault type</th><th>Voltage (V)</th><th>Current (A)</th><th>Power (W)</th></tr>"
+      + fl.map(r=>`<tr><td class="mono">${esc(r.t)}</td><td>${faultsOf(r).map(f=>`<span class="tag">${f}</span>`).join("")}</td><td class="mono">${r.v.toFixed(1)}</td><td class="mono">${r.i.toFixed(2)}</td><td class="mono">${r.w.toFixed(0)}</td></tr>`).join("")+"</table>"
+    : '<div class="empty">No faults recorded.</div>';
+  renderAlert(all);
+  $("foot").textContent = "Source: " + lastSrc + " · " + all.length + " rows · refreshed " + new Date().toLocaleTimeString();
+  checkOffline();
+}
+function renderAll(){ render(ALL); }
+
+function human(sec){ sec = Math.round(sec); return sec < 120 ? sec + " s" : Math.round(sec/60) + " min"; }
+function checkOffline(){
+  const n = $("offline"), last = ALL[ALL.length-1];
+  if (!last || !last.d){ n.hidden = true; return; }
+  const age = (Date.now() - last.d.getTime())/1000;
+  if (age < -300){
+    n.hidden = false; n.className = "notice warn";
+    n.textContent = "The newest timestamp is in the future. Check the time format in column A (use yyyy-mm-dd hh:mm:ss) and the sheet's time zone.";
+  } else if (age > CFG.offlineSec){
+    n.hidden = false; n.className = "notice";
+    n.textContent = "ESP32 OFFLINE: no new reading for " + human(age) + " (limit " + CFG.offlineSec + " s).";
+    $("chip").className = "chip bad"; $("chipTxt").textContent = "OFFLINE";
+  } else n.hidden = true;
+}
+
+/* ---------- loop, countdown, buttons ---------- */
+async function doLoad(){
+  if (busy) return; busy = true;
+  try {
+    const rows = mode === "live" ? await loadLive() : loadTest();
+    ALL = rows; $("err").hidden = true; renderAll();
+  } catch (e){
+    $("err").hidden = false; $("err").textContent = e.message;
+    if (!ALL.length){ $("chip").className = "chip bad"; $("chipTxt").textContent = "No data"; }
+    $("foot").textContent = "Last try " + new Date().toLocaleTimeString() + " failed";
+  }
+  busy = false;
+}
+function reset(){ left = mode === "live" ? CFG.refreshSec : CFG.testRefreshSec; }
+function applyMode(){
+  $("mode").textContent = "Mode: " + (mode === "live" ? "Live (Google Sheet)" : "Test data");
+  $("toolsPanel").hidden = mode !== "test";
+}
+setInterval(() => {
+  checkOffline();
+  left--;
+  if (left <= 0){ doLoad(); reset(); }
+  $("cd").textContent = "Next refresh in " + Math.max(left,0) + " s";
+}, 1000);
+
+$("mode").addEventListener("click", () => {
+  mode = mode === "live" ? "test" : "live";
+  try { localStorage.setItem("dbMode", mode); } catch (e) {}
+  ALL = []; applyMode(); reset(); doLoad();
+});
+$("theme").addEventListener("click", () => {
+  const d = document.documentElement, light = d.dataset.theme === "dark";
+  d.dataset.theme = light ? "light" : "dark";
+  $("theme").textContent = light ? "Switch to dark mode" : "Switch to light mode";
+});
+document.querySelectorAll("[data-ch]").forEach(b => b.addEventListener("click", () => { CFG.alertChannel = b.dataset.ch; renderAlert(ALL); }));
+document.querySelectorAll("[data-f]").forEach(b => b.addEventListener("click", () => { simPaused = false; $("pause").classList.remove("on"); simForce = { type: b.dataset.f, left: 3 }; left = 0; }));
+$("pause").addEventListener("click", () => { simPaused = !simPaused; $("pause").classList.toggle("on", simPaused); });
+
+try { mode = localStorage.getItem("dbMode") || (hasLink() ? "live" : "test"); } catch (e) { mode = hasLink() ? "live" : "test"; }
+applyMode(); reset(); doLoad();
+</script>
+</body>
+</html>
